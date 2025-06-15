@@ -2,12 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CesiumJS 3D Globe with GeoJSON</title>
-  <script src="https://cdn.jsdelivr.net/npm/cesium@latest/Build/Cesium/Cesium.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/cesium@latest/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+  <title>CesiumJS 3D Globe with GeoJSON Layers</title>
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Cesium.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.114.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
   <style>
     html, body, #cesiumContainer {
-      width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: sans-serif;
     }
   </style>
 </head>
@@ -15,60 +20,79 @@
   <div id="cesiumContainer"></div>
 
   <script>
-    // Initialize Cesium Viewer with satellite imagery and terrain
+    // Initialize Cesium viewer
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrainProvider: Cesium.createWorldTerrain(),
-      imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }), // Bing Satellite imagery
+      imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }), // Bing Maps Aerial
       baseLayerPicker: true,
       timeline: false,
-      animation: false
+      animation: false,
     });
 
-    // GeoJSON URLs
-    const geojsonUrls = [
-      { url: 'https://raw.githubusercontent.com/spwork2930/Map/main/Parks.geojson', color: Cesium.Color.RED.withAlpha(0.6) },
-      { url: 'https://raw.githubusercontent.com/spwork2930/Map/main/Plots.geojson', color: Cesium.Color.BLUE.withAlpha(0.6) },
-      { url: 'https://raw.githubusercontent.com/spwork2930/Map/main/Roads.geojson', color: Cesium.Color.GREEN.withAlpha(0.6) }
+    // GeoJSON layers to load
+    const geojsonLayers = [
+      {
+        name: 'Park (Red)',
+        url: 'https://raw.githubusercontent.com/spwork2930/Map/main/Parks.geojson',
+        color: Cesium.Color.RED.withAlpha(0.6),
+      },
+      {
+        name: 'Plot (Blue)',
+        url: 'https://raw.githubusercontent.com/spwork2930/Map/main/Plots.geojson',
+        color: Cesium.Color.BLUE.withAlpha(0.6),
+      },
+      {
+        name: 'Road (Green)',
+        url: 'https://raw.githubusercontent.com/spwork2930/Map/main/Roads.geojson',
+        color: Cesium.Color.GREEN.withAlpha(0.6),
+      }
     ];
 
-    // Load GeoJSON and add to viewer with styling and popup
-    Promise.all(geojsonUrls.map(info => {
-      return Cesium.GeoJsonDataSource.load(info.url, {
-        clampToGround: true
+    const dataSources = [];
+
+    Promise.all(geojsonLayers.map(layer => {
+      return Cesium.GeoJsonDataSource.load(layer.url, {
+        clampToGround: true,
       }).then(dataSource => {
-        // Style entities
+        viewer.dataSources.add(dataSource);
+        dataSources.push(dataSource);
+
+        // Style each feature
         const entities = dataSource.entities.values;
         for (let i = 0; i < entities.length; i++) {
           const entity = entities[i];
+
           if (entity.polygon) {
-            entity.polygon.material = info.color;
+            entity.polygon.material = layer.color;
             entity.polygon.outline = true;
             entity.polygon.outlineColor = Cesium.Color.BLACK;
           }
+
           if (entity.polyline) {
-            entity.polyline.material = info.color;
+            entity.polyline.material = new Cesium.ColorMaterialProperty(layer.color);
             entity.polyline.width = 2;
           }
-          // Set description popup from properties
+
+          // Add popup description
           if (entity.properties) {
-            let desc = "<table>";
-            const props = entity.properties;
-            for (const propName in props) {
-              desc += `<tr><th>${propName}</th><td>${props[propName].toString()}</td></tr>`;
-            }
-            desc += "</table>";
-            entity.description = desc;
+            let html = `<h4>${layer.name}</h4><table>`;
+            entity.properties.propertyNames.forEach(name => {
+              html += `<tr><td><b>${name}</b></td><td>${entity.properties[name].getValue()}</td></tr>`;
+            });
+            html += `</table>`;
+            entity.description = html;
           }
         }
 
-        viewer.dataSources.add(dataSource);
         return dataSource;
       });
-    })).then(dataSources => {
-      // Zoom to all loaded data
-      viewer.zoomTo(dataSources);
-    }).catch(err => {
-      console.error('Error loading GeoJSON data:', err);
+    }))
+    .then(() => {
+      // Zoom to all data layers
+      viewer.flyTo(dataSources);
+    })
+    .catch(error => {
+      console.error('Error loading GeoJSON:', error);
     });
   </script>
 </body>
