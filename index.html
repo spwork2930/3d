@@ -20,11 +20,14 @@
   <div id="cesiumContainer"></div>
 
   <script>
-    // Initialize Cesium viewer
+    // Initialize Cesium viewer with OpenStreetMap imagery
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrainProvider: Cesium.createWorldTerrain(),
-      imageryProvider: new Cesium.IonImageryProvider({ assetId: 3 }), // Bing Maps Aerial
-      baseLayerPicker: true,
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        credit: '© OpenStreetMap contributors'
+      }),
+      baseLayerPicker: false,
       timeline: false,
       animation: false,
     });
